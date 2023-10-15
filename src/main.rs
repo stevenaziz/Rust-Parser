@@ -40,8 +40,10 @@ struct Token {
     lexeme: String,
 }
 
+// Takes String input and produces vector of Tokens (see Token struct)
 fn lexer(input: &String) -> Vec<Token> {
     let mut i: usize = 0;
+    let input_length: usize = input.len();
     let mut curr_char: char;
     let mut output: Vec<Token> = Vec::new();
     let special_lexeme: HashMap<char, TokenTypes> = HashMap::from([
@@ -70,7 +72,7 @@ fn lexer(input: &String) -> Vec<Token> {
         ("correlation", TokenTypes::CORRELATION),
     ]);
 
-    while i < input.len() {
+    while i < input_length {
         curr_char = input.chars().nth(i).unwrap();
 
         if special_lexeme.contains_key(&curr_char) {
@@ -83,11 +85,14 @@ fn lexer(input: &String) -> Vec<Token> {
             let mut lexeme = String::new();
             lexeme.push(curr_char);
             i += 1;
-            curr_char = input.chars().nth(i).unwrap();
-            while curr_char.is_ascii_lowercase() {
-                lexeme.push(curr_char);
-                i += 1;
+            while i < input_length {
                 curr_char = input.chars().nth(i).unwrap();
+                if curr_char.is_ascii_lowercase() {
+                    lexeme.push(curr_char);
+                    i += 1;
+                } else {
+                    break;
+                }
             }
             if reserved_lexeme.contains_key(lexeme.as_str()) {
                 output.push(Token {
@@ -104,11 +109,14 @@ fn lexer(input: &String) -> Vec<Token> {
             let mut lexeme = String::new();
             lexeme.push(curr_char);
             i += 1;
-            curr_char = input.chars().nth(i).unwrap();
-            while curr_char.is_ascii_digit() {
-                lexeme.push(curr_char);
-                i += 1;
+            while i < input_length {
                 curr_char = input.chars().nth(i).unwrap();
+                if curr_char.is_ascii_digit() {
+                    lexeme.push(curr_char);
+                    i += 1;
+                } else {
+                    break;
+                }
             }
             output.push(Token {
                 token: TokenTypes::NUM,
@@ -118,22 +126,23 @@ fn lexer(input: &String) -> Vec<Token> {
             let mut lexeme = String::new();
             lexeme.push(curr_char);
             i += 1;
-            curr_char = input.chars().nth(i).unwrap();
-            while curr_char.is_ascii_lowercase()
-                || curr_char.is_ascii_whitespace()
-                || curr_char.is_ascii_digit()
-                || curr_char == '.'
-                || curr_char == '='
-            {
-                lexeme.push(curr_char);
-                i += 1;
+            while i < input_length {
                 curr_char = input.chars().nth(i).unwrap();
-            }
-            if curr_char == '\"' {
-                lexeme.push(curr_char);
-                i += 1;
-            } else {
-                panic!("; SYNTAX ERROR!\n; Expected '\"' after {}.", lexeme);
+                if curr_char.is_ascii_lowercase()
+                    || curr_char.is_ascii_whitespace()
+                    || curr_char.is_ascii_digit()
+                    || curr_char == '.'
+                    || curr_char == '='
+                {
+                    lexeme.push(curr_char);
+                    i += 1;
+                } else if curr_char == '\"' {
+                    lexeme.push(curr_char);
+                    i += 1;
+                    break;
+                } else {
+                    panic!("\n\n; SYNTAX ERROR!\n; Expected '\"' after '{}'.\n\n", lexeme);
+                }
             }
             output.push(Token {
                 token: TokenTypes::STRING,
@@ -143,7 +152,7 @@ fn lexer(input: &String) -> Vec<Token> {
             i += 1;
         } else {
             panic!(
-                "; LEXICAL ERROR!\n; Unrecognized character '{}'.",
+                "\n\n; LEXICAL ERROR!\n; Unrecognized character '{}'.\n\n",
                 curr_char
             );
         }
@@ -156,7 +165,7 @@ fn get_next_token(index: usize, tokens: &Vec<Token>) -> Token {
     return tokens[index].clone();
 }
 
-fn check_complete() {}
+fn check_complete() {} // TODO
 
 fn datadef_parser(start_index: usize, tokens: &Vec<Token>) -> usize {
     let mut i: usize = start_index;
@@ -164,7 +173,7 @@ fn datadef_parser(start_index: usize, tokens: &Vec<Token>) -> usize {
 
     assert!(
         curr_token.token == TokenTypes::ID,
-        "; SYNTAX ERROR!\n; Syntax error at '{}'.",
+        "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n",
         curr_token.lexeme
     );
 
