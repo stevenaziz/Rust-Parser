@@ -1,9 +1,9 @@
 data:
-   xvalues = vector,
-   yvalues = Vector,
-   a = number,
-   b = number,
-   r = number
+   xvalues : vector,
+   yvalues : Vector,
+   a : number,
+   b : number,
+   r : number
 input:
    xvalues = read("file.csv", false, 0),
    yvalues = read("file.csv", false, 1)

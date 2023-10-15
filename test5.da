@@ -1,9 +1,9 @@
 data:
-   xvalues = vector,
-   yvalues = vector,
-   a = number,
-   b = number,
-   r = number
+   xvalues : vector,
+   yvalues : vector,
+   a : number,
+   b : number,
+   r : number
 process:
    a = regressiona(xvalues, yvalues),
    b = regressionb(xvalues, yvalues),

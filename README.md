@@ -71,7 +71,7 @@ OUTPUTOP    -->   STRING |
 ID          -->   LETTER+
 TYPE        -->   vector | number
 BOOL        -->   true | false
-STRING      -->   "LETTER+"
+STRING      -->   "(LETTER|.| |=|DIGIT)+"
 NUM         -->   DIGIT+
 LETTER      -->   a | b | c | d | e | f | g | ... | z
 DIGIT       -->   0 | 1 | 2 | 3 | 4 | 5 | 6 | ... | 9

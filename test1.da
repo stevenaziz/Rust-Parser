@@ -1,18 +1,18 @@
 data:
-   xval = vector,
-   yval = vector,
-   a = number,
-   b = number,
-   themean = number,
-   thevar = number
+   xval : vector,
+   yval : vector,
+   a : number,
+   b : number,
+   themean : number,
+   thevar : number
 input:
    xval = read("my-file.csv", true, 1),
    yval = read("my-file.csv", true, 2)
 process:
    a = regressiona(xval, yval),
    b = regressionb(xval, yval),
-   themean = mean(xval, yval),
-   thevar = stddev(xval, yval)
+   themean = mean(xval),
+   thevar = stddev(xval)
 output:
    "value of a = ",
    a,
