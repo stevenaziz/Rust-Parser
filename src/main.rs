@@ -1,6 +1,9 @@
 // Authored in full by Steven Anmar Aziz
 // Last Modified 10/15/2023
 
+// This is a first attempt at building a parser in Rust and there are many possible improvements (especially with the output generation)
+// This code is far from perfect
+
 use core::cmp::PartialEq;
 use std::collections::HashMap;
 use std::env;
