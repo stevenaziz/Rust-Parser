@@ -1,8 +1,7 @@
-// Authored in full by Steven Anmar Aziz
-// Last Modified 10/15/2023
+// Authored by Steven Anmar Aziz
+// Last Modified 10/17/2023
 
-// This is a first attempt at building a parser in Rust and there are many possible improvements (especially with the output generation)
-// This code is far from perfect
+// The variable 'i' will be used throughout this source code as an integer iterator
 
 use core::cmp::PartialEq;
 use std::collections::HashMap;
@@ -10,6 +9,7 @@ use std::env;
 use std::fs::File;
 use std::io::prelude::*;
 
+// Flag enum will be used to indicate whether Prolog or Scheme output is requested
 #[derive(PartialEq, Eq)]
 enum Flag {
     Scheme,
@@ -17,6 +17,7 @@ enum Flag {
     None,
 }
 
+// TokenTypes enum will be used to store a token type and to compare tokens
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum TokenTypes {
     DATA,
@@ -45,15 +46,17 @@ enum TokenTypes {
     STRING,
 }
 
+// Token struct will be used to store each token in a vector
 #[derive(Clone)]
 struct Token {
     token: TokenTypes,
     lexeme: String,
 }
 
-// Lexer
-// Takes String input and produces vector of Tokens (see Token struct)
-fn lexer(input: &String) -> Vec<Token> {
+// Lexer function
+// Takes String input and produces vector of Tokens
+// If lexical or syntax errors are found, function panics
+fn lexer(input: String) -> Vec<Token> {
     let mut i: usize = 0;
     let input_length: usize = input.len();
     let mut curr_char: char;
@@ -177,13 +180,14 @@ fn lexer(input: &String) -> Vec<Token> {
 }
 
 // Helper function
-// Takes in vector of tokens and an index of the vector to return the Token at that index
+// Takes an unsigened integer and a vector of Tokens and returns the Token in the vector at the index of the integer
 fn get_next_token(index: usize, tokens: &Vec<Token>) -> Token {
     return tokens[index].clone();
 }
 
 // Helper function
-// Takes two integers and panicks if one is smaller than the other, otherwise increments and returns smaller one
+// Takes two integers, i and i_max, and returns i incremented by 1
+// Function panics if i is greater than i_max - 1
 fn increment_i(i: usize, i_max: usize) -> usize {
     assert!(
         i < i_max - 1,
@@ -192,12 +196,20 @@ fn increment_i(i: usize, i_max: usize) -> usize {
     return i + 1;
 }
 
+// DataDef Parser
 // Parses RHS for the datadef rule of the grammar
-// Takes in an integer, a vector of Tokens, and a flag and returns an integer corresponding to the index where datadef ends
-fn datadef_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize {
+// Takes an unsigned integer, a vector of Tokens, a Flag (which is thrown away), and a String
+// Returns a tuple with an integer and a String
+// Function panics if syntax errors are found
+fn datadef_parser(
+    start_index: usize,
+    tokens: &Vec<Token>,
+    _: &Flag,
+    prog_output: String,
+) -> (usize, String) {
     let mut i: usize = start_index;
     let num_tokens: usize = tokens.len();
-    let mut curr_token: Token = get_next_token(i, &tokens);
+    let mut curr_token: Token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::ID,
@@ -206,7 +218,7 @@ fn datadef_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize
     );
 
     i = increment_i(i, num_tokens);
-    curr_token = get_next_token(i, &tokens);
+    curr_token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::COLON,
@@ -215,7 +227,7 @@ fn datadef_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize
     );
 
     i = increment_i(i, num_tokens);
-    curr_token = get_next_token(i, &tokens);
+    curr_token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::VECTOR || curr_token.token == TokenTypes::NUMBER,
@@ -223,16 +235,23 @@ fn datadef_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize
         curr_token.lexeme
     );
     i = increment_i(i, num_tokens);
-    return i;
+    return (i, prog_output);
 }
 
+// InputOp Parser
 // Parses RHS for the inputop rule of the grammar
-// Takes in an integer, a vector of Tokens, and a flag and returns an integer corresponding to the index where inputop ends
-// Also prints Prolog/Scheme output depending on the flag
-fn inputop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize {
+// Takes an unsigned integer, a vector of Tokens, a Flag, and a String
+// Returns a tuple with an integer and a String
+// Function panics if syntax errors are found
+fn inputop_parser(
+    start_index: usize,
+    tokens: &Vec<Token>,
+    flag: &Flag,
+    mut prog_output: String,
+) -> (usize, String) {
     let mut i: usize = start_index;
     let num_tokens: usize = tokens.len();
-    let mut curr_token: Token = get_next_token(i, &tokens);
+    let mut curr_token: Token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::ID,
@@ -241,7 +260,7 @@ fn inputop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize
     );
     let id: String = curr_token.lexeme;
     i = increment_i(i, num_tokens);
-    curr_token = get_next_token(i, &tokens);
+    curr_token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::ASSIGN,
@@ -249,7 +268,7 @@ fn inputop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize
         curr_token.lexeme
     );
     i = increment_i(i, num_tokens);
-    curr_token = get_next_token(i, &tokens);
+    curr_token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::READ,
@@ -257,7 +276,7 @@ fn inputop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize
         curr_token.lexeme
     );
     i = increment_i(i, num_tokens);
-    curr_token = get_next_token(i, &tokens);
+    curr_token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::LPAREN,
@@ -265,7 +284,7 @@ fn inputop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize
         curr_token.lexeme
     );
     i = increment_i(i, num_tokens);
-    curr_token = get_next_token(i, &tokens);
+    curr_token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::STRING,
@@ -274,7 +293,7 @@ fn inputop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize
     );
     let str: String = curr_token.lexeme;
     i = increment_i(i, num_tokens);
-    curr_token = get_next_token(i, &tokens);
+    curr_token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::COMMA,
@@ -282,16 +301,16 @@ fn inputop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize
         curr_token.lexeme
     );
     i = increment_i(i, num_tokens);
-    curr_token = get_next_token(i, &tokens);
+    curr_token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::TRUE || curr_token.token == TokenTypes::FALSE,
         "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n\n",
         curr_token.lexeme
     );
-    let bool: String = curr_token.lexeme;
+    let mut bool: String = curr_token.lexeme;
     i = increment_i(i, num_tokens);
-    curr_token = get_next_token(i, &tokens);
+    curr_token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::COMMA,
@@ -299,7 +318,7 @@ fn inputop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize
         curr_token.lexeme
     );
     i = increment_i(i, num_tokens);
-    curr_token = get_next_token(i, &tokens);
+    curr_token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::NUM,
@@ -308,7 +327,7 @@ fn inputop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize
     );
     let num: String = curr_token.lexeme;
     i = increment_i(i, num_tokens);
-    curr_token = get_next_token(i, &tokens);
+    curr_token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::RPAREN,
@@ -318,27 +337,30 @@ fn inputop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize
     i = increment_i(i, num_tokens);
 
     if flag == &Flag::Prolog {
-        println!("   load_data_column({}, {}, {}, {}),", str, bool, num, id);
+        prog_output
+            .push_str(format!("\n   load_data_column({str}, {bool}, {num}, {id}),").as_str());
     } else if flag == &Flag::Scheme {
-        println!(
-            "(define {} (read-csv {} #{} {}))",
-            id,
-            str,
-            bool.chars().nth(0).unwrap(),
-            num
-        );
+        bool = String::from(bool.chars().nth(0).unwrap());
+        prog_output.push_str(format!("(define {id} (read-csv {str} #{bool} {num}))\n").as_str());
     }
 
-    return i;
+    return (i, prog_output);
 }
 
+// ProcessOp Parser
 // Parses RHS for the processop rule of the grammar
-// Takes in an integer, a vector of Tokens, and a flag and returns an integer corresponding to the index where processop ends
-// Also prints Prolog/Scheme output depending on the flag
-fn processop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize {
+// Takes an unsigned integer, a vector of Tokens, a Flag, and a String
+// Returns a tuple with an integer and a String
+// Function panics if syntax errors are found
+fn processop_parser(
+    start_index: usize,
+    tokens: &Vec<Token>,
+    flag: &Flag,
+    mut prog_output: String,
+) -> (usize, String) {
     let mut i: usize = start_index;
     let num_tokens: usize = tokens.len();
-    let mut curr_token: Token = get_next_token(i, &tokens);
+    let mut curr_token: Token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::ID,
@@ -347,7 +369,7 @@ fn processop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usi
     );
     let id: String = curr_token.lexeme;
     i = increment_i(i, num_tokens);
-    curr_token = get_next_token(i, &tokens);
+    curr_token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::ASSIGN,
@@ -355,15 +377,15 @@ fn processop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usi
         curr_token.lexeme
     );
     i = increment_i(i, num_tokens);
-    curr_token = get_next_token(i, &tokens);
+    curr_token = get_next_token(i, tokens);
 
+    let func: String = curr_token.lexeme;
     if curr_token.token == TokenTypes::REGRESSIONA
         || curr_token.token == TokenTypes::REGRESSIONB
         || curr_token.token == TokenTypes::CORRELATION
     {
-        let func: String = curr_token.lexeme;
         i = increment_i(i, num_tokens);
-        curr_token = get_next_token(i, &tokens);
+        curr_token = get_next_token(i, tokens);
         assert!(
             curr_token.token == TokenTypes::LPAREN,
             "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n\n",
@@ -371,7 +393,7 @@ fn processop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usi
         );
 
         i = increment_i(i, num_tokens);
-        curr_token = get_next_token(i, &tokens);
+        curr_token = get_next_token(i, tokens);
         assert!(
             curr_token.token == TokenTypes::ID,
             "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n\n",
@@ -380,7 +402,7 @@ fn processop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usi
         let param1: String = curr_token.lexeme;
 
         i = increment_i(i, num_tokens);
-        curr_token = get_next_token(i, &tokens);
+        curr_token = get_next_token(i, tokens);
         assert!(
             curr_token.token == TokenTypes::COMMA,
             "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n\n",
@@ -388,7 +410,7 @@ fn processop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usi
         );
 
         i = increment_i(i, num_tokens);
-        curr_token = get_next_token(i, &tokens);
+        curr_token = get_next_token(i, tokens);
         assert!(
             curr_token.token == TokenTypes::ID,
             "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n\n",
@@ -397,7 +419,7 @@ fn processop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usi
         let param2: String = curr_token.lexeme;
 
         i = increment_i(i, num_tokens);
-        curr_token = get_next_token(i, &tokens);
+        curr_token = get_next_token(i, tokens);
         assert!(
             curr_token.token == TokenTypes::RPAREN,
             "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n\n",
@@ -405,14 +427,13 @@ fn processop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usi
         );
 
         if flag == &Flag::Prolog {
-            println!("   {}({}, {}, {}),", func, param1, param2, id);
+            prog_output.push_str(format!("\n   {func}({param1}, {param2}, {id}),").as_str());
         } else if flag == &Flag::Scheme {
-            println!("(define {} ({} {} {}))", id, func, param1, param2);
+            prog_output.push_str(format!("(define {id} ({func} {param1} {param2}))\n").as_str());
         }
     } else if curr_token.token == TokenTypes::MEAN || curr_token.token == TokenTypes::STDDEV {
-        let func: String = curr_token.lexeme;
         i = increment_i(i, num_tokens);
-        curr_token = get_next_token(i, &tokens);
+        curr_token = get_next_token(i, tokens);
         assert!(
             curr_token.token == TokenTypes::LPAREN,
             "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n\n",
@@ -420,7 +441,7 @@ fn processop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usi
         );
 
         i = increment_i(i, num_tokens);
-        curr_token = get_next_token(i, &tokens);
+        curr_token = get_next_token(i, tokens);
         assert!(
             curr_token.token == TokenTypes::ID,
             "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n\n",
@@ -429,7 +450,7 @@ fn processop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usi
         let param1: String = curr_token.lexeme;
 
         i = increment_i(i, num_tokens);
-        curr_token = get_next_token(i, &tokens);
+        curr_token = get_next_token(i, tokens);
         assert!(
             curr_token.token == TokenTypes::RPAREN,
             "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n\n",
@@ -437,74 +458,87 @@ fn processop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usi
         );
 
         if flag == &Flag::Prolog {
-            println!("   {}({}, {}),", func, param1, id);
+            prog_output.push_str(format!("\n   {func}({param1}, {id}),").as_str());
         } else if flag == &Flag::Scheme {
-            println!("(define {} ({} {}))", id, func, param1);
+            prog_output.push_str(format!("(define {id} ({func} {param1}))\n").as_str());
         }
     } else {
         panic!(
             "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n\n",
-            curr_token.lexeme
+            func // This is 'curr_token.lexeme,' renamed
         );
     }
 
-    return i + 1;
+    return (i + 1, prog_output);
 }
 
+// OutputOp Parser
 // Parses RHS for the outputop rule of the grammar
-// Takes in an integer, a vector of Tokens, and a flag and returns an integer corresponding to the index where output ends
-// Also prints Prolog/Scheme output depending on the flag
-fn outputop_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) -> usize {
+// Takes an unsigned integer, a vector of Tokens, a Flag, and a String
+// Returns a tuple with an integer and a String
+// Function panics if syntax errors are found
+fn outputop_parser(
+    start_index: usize,
+    tokens: &Vec<Token>,
+    flag: &Flag,
+    mut prog_output: String,
+) -> (usize, String) {
     let i: usize = start_index;
-    let curr_token: Token = get_next_token(i, &tokens);
+    let curr_token: Token = get_next_token(i, tokens);
 
     assert!(
         curr_token.token == TokenTypes::STRING || curr_token.token == TokenTypes::ID,
         "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n\n",
         curr_token.lexeme
     );
+    let str_or_id = curr_token.lexeme;
     if flag == &Flag::Prolog {
-        println!("   writeIn({}),", curr_token.lexeme);
+        prog_output.push_str(format!("\n   writeIn({str_or_id}),").as_str());
     } else if flag == &Flag::Scheme {
-        println!("(display {})\n(newline)", curr_token.lexeme);
+        prog_output.push_str(format!("(display {str_or_id})\n(newline)\n").as_str());
     }
-    return i + 1;
+    return (i + 1, prog_output);
 }
 
-// Helper function
-// This acts as parser for datadefs, inputops, processops, and outputops
-// Takes in an integer, a vector of Tokens, a function, and a flag and returns an integer corresponding to the index where output ends
-// This parser calls the appropriate subprograms and makes sure datadef, inputop, processop, and outputop nonterminals are comma-separated
+// Special helper function
+// Parses comma-spearated datadef,inputop, processop, or outputop nonterminals of the grammar
+// Takes an unsigned integer, a vector of Tokens, a function (datadef, inputop, processop, or outputop), a Flag, and a String
+// Returns a tuple with an integer and a String
 fn special_parser(
     start_index: usize,
     tokens: &Vec<Token>,
-    function: fn(usize, &Vec<Token>, &Flag) -> usize,
+    function: fn(usize, &Vec<Token>, &Flag, String) -> (usize, String),
     flag: &Flag,
-) -> usize {
+    mut prog_output: String,
+) -> (usize, String) {
     let mut i: usize = start_index;
     let num_tokens: usize = tokens.len();
     let mut curr_token: Token;
 
-    i = function(i, &tokens, flag);
+    (i, prog_output) = function(i, tokens, flag, prog_output);
 
-    curr_token = get_next_token(i, &tokens);
+    curr_token = get_next_token(i, tokens);
 
     while curr_token.token == TokenTypes::COMMA {
         i = increment_i(i, num_tokens);
-        i = function(i, &tokens, flag);
-        curr_token = get_next_token(i, &tokens);
+        (i, prog_output) = function(i, tokens, flag, prog_output);
+        curr_token = get_next_token(i, tokens);
     }
-    return i;
+    return (i, prog_output);
 }
 
-// Parses RHS for the program rule of the grammar (start symbol, top of the parse tree)
-// Takes in an integer, a vector of Tokens, and a flag and returns an integer corresponding to the index where inputop ends
-// Also prints Prolog output depending on the flag
-fn program_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) {
-    let mut i: usize = start_index;
+// Program Parser
+// Parses RHS for the program rule of the grammar
+// Takes a vector of Tokens, a Flag, and a String
+// Returns a String corresponding to the requested Prolog/Scheme output
+// Function panics if syntax errors are found
+fn program_parser(tokens: Vec<Token>, flag: Flag, mut prog_output: String) -> String {
+    let mut i: usize = 0;
     let num_tokens: usize = tokens.len();
     let mut curr_token: Token = get_next_token(i, &tokens);
-
+    if flag == Flag::Prolog {
+        prog_output.push_str("main :-");
+    }
     assert!(
         curr_token.token == TokenTypes::DATA,
         "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n\n",
@@ -517,8 +551,9 @@ fn program_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) {
         "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n\n",
         curr_token.lexeme
     );
+
     i = increment_i(i, num_tokens);
-    i = special_parser(i, &tokens, datadef_parser, flag);
+    (i, prog_output) = special_parser(i, &tokens, datadef_parser, &flag, prog_output);
 
     curr_token = get_next_token(i, &tokens);
     assert!(
@@ -534,10 +569,7 @@ fn program_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) {
         curr_token.lexeme
     );
     i = increment_i(i, num_tokens);
-    if flag == &Flag::Prolog {
-        println!("main :-");
-    }
-    i = special_parser(i, &tokens, inputop_parser, flag);
+    (i, prog_output) = special_parser(i, &tokens, inputop_parser, &flag, prog_output);
 
     curr_token = get_next_token(i, &tokens);
     assert!(
@@ -553,7 +585,7 @@ fn program_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) {
         curr_token.lexeme
     );
     i = increment_i(i, num_tokens);
-    i = special_parser(i, &tokens, processop_parser, flag);
+    (i, prog_output) = special_parser(i, &tokens, processop_parser, &flag, prog_output);
 
     curr_token = get_next_token(i, &tokens);
     assert!(
@@ -569,7 +601,7 @@ fn program_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) {
         curr_token.lexeme
     );
     i = increment_i(i, num_tokens);
-    i = special_parser(i, &tokens, outputop_parser, flag);
+    (i, prog_output) = special_parser(i, &tokens, outputop_parser, &flag, prog_output);
 
     curr_token = get_next_token(i, &tokens);
     assert!(
@@ -584,48 +616,60 @@ fn program_parser(start_index: usize, tokens: &Vec<Token>, flag: &Flag) {
         "\n\n; SYNTAX ERROR!\n; Syntax error at '{}'.\n\n",
         curr_token.lexeme
     );
+    if flag == Flag::Prolog {
+        prog_output.pop();
+        prog_output.push('.');
+    }
 
     assert!(
         i == num_tokens - 1,
         "\n\n; SYNTAX ERROR!\n; Unexpected characters after 'end.'"
     );
+    return prog_output;
 }
 
-// The main function receives/checks program parameters, opens and reads the input file, calls the lexer, calls the program parser, and prints messages for errors/completion
+// Main
+// Receives and checks program parameters, opens and reads the input file, calls the lexer, calls the program parser, and prints the requested output (if any)
+// Function panics if any errors are found
 fn main() {
-    let params: Vec<String> = env::args().collect();
+    let prog_params: Vec<String> = env::args().collect();
     let mut flag: Flag = Flag::None;
+    let mut prog_output: String = String::new();
 
-    if params.len() == 1 {
+    if prog_params.len() == 1 {
         panic!("\n\n; No input file provided!\n\n");
-    } else if params.len() == 2 {
-        println!("\n; Processing input file '{}'.\n\n", params[1]);
-    } else if params.len() == 3 {
+    } else if prog_params.len() == 2 {
+        println!("\n; Processing input file '{}'.\n", prog_params[1]);
+    } else if prog_params.len() == 3 {
         assert!(
-            params[2] == "-p" || params[2] == "-s",
+            prog_params[2] == "-p" || prog_params[2] == "-s",
             "\n\n; Unrecognized input parameter '{}'!\n\n",
-            params[2]
+            prog_params[2]
         );
-        if params[2] == "-p" {
+        if prog_params[2] == "-p" {
             flag = Flag::Prolog;
         } else {
             flag = Flag::Scheme;
         }
-        println!("\n; Processing input file '{}'.\n\n", params[1]);
+        println!("\n; Processing input file '{}'.\n", prog_params[1]);
     } else {
         panic!("\n\n; Unrecognized input parameters!\n\n");
     }
 
-    let mut input: File =
-        File::open(&params[1]).expect("\n\n; FILE ERROR!\n; Could not open the file!\n\n");
+    let mut input_file: File =
+        File::open(&prog_params[1]).expect("\n\n; FILE ERROR!\n; Could not open the file!\n\n");
 
     let mut contents: String = String::new();
 
-    input
+    input_file
         .read_to_string(&mut contents)
         .expect("\n\n; FILE ERROR!\n; The contents of the file could not be read!\n\n");
 
-    let tokens: Vec<Token> = lexer(&contents);
-    program_parser(0, &tokens, &flag);
-    println!("\n; Lexical and Syntax analysis passed.\n\n");
+    let tokens: Vec<Token> = lexer(contents);
+
+    prog_output = program_parser(tokens, flag, prog_output);
+
+    println!("\n; Lexical and Syntax analysis passed.\n");
+
+    println!("{prog_output}\n");
 }
